@@ -1,0 +1,14 @@
+streamlit
+torch
+transformers
+opencv-python
+librosa
+numpy
+pandas
+soundfile
+pillow
+scikit-learn
+torchaudio
+audio-recorder-streamlit
+plotly
+moviepy
