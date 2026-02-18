@@ -9,19 +9,36 @@ from transformers import pipeline
 
 class VisionEmotionModel:
     def __init__(self):
-        # Using a standard Vision Transformer for facial expression recognition
-        # dima806/facial_emotions_image_detection is a ViT tuned on FER2013 or simliar
-        # Output labels: "angry", "disgust", "fear", "happy", "neutral", "sad", "surprise"
+        # Configuration-driven loading
+        from config import VISION_MODEL
+        model_name = VISION_MODEL.get("model_name", "dima806/facial_emotions_image_detection")
+        device = VISION_MODEL.get("device", "cpu")
+        
         try:
+            from config import PERFORMANCE
+            if PERFORMANCE.get("torch_threads"):
+                torch.set_num_threads(PERFORMANCE["torch_threads"])
+
             self.classifier = pipeline(
                 "image-classification", 
-                model="dima806/facial_emotions_image_detection",
+                model=model_name,
+                device=device,
                 use_fast=False
             )
-        except Exception:
-            # Fallback to smaller model if needed, but ViT is standard size ~300MB
+            
+            # Apply dynamic quantization for CPU speedup
+            if device == "cpu" and PERFORMANCE.get("use_quantization"):
+                try:
+                    self.classifier.model = torch.quantization.quantize_dynamic(
+                        self.classifier.model, {torch.nn.Linear}, dtype=torch.qint8
+                    )
+                    print("✅ Vision model quantized for speed")
+                except Exception as qe:
+                    print(f"Quantization skipped: {qe}")
+
+        except Exception as e:
             self.classifier = None
-            print("Vision model loading failed. Check internet connection or disk space.")
+            print(f"Vision model loading failed: {e}")
 
         # Load OpenCV Face Detector (Haar Cascade)
         # Using built-in path
@@ -83,13 +100,14 @@ class VisionEmotionModel:
         
         face_crop = frame[y1:y2, x1:x2]
         
-        # Convert crop back to PIL for Transformers
-        pil_face = Image.fromarray(face_crop)
+        # Convert crop back to PIL and resize (ViT native resolution is 224)
+        pil_face = Image.fromarray(face_crop).resize((224, 224))
 
         # Predict
         try:
             start_time = time.time()
-            results = self.classifier(pil_face)
+            with torch.inference_mode():
+                results = self.classifier(pil_face)
             # format: [{'label': 'happy', 'score': 0.99}, ...]
             top_result = results[0]
             label = top_result['label']

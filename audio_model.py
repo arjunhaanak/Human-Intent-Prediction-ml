@@ -8,16 +8,35 @@ from transformers import pipeline
 
 class AudioEmotionModel:
     def __init__(self):
-        # We use a more robust model for emotion recognition
-        # 'haru-recording/wav2vec2-lg-xlsr-en-speech-emotion-recognition' is generally seen as very accurate
-        # Emotions: 'angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise'
+        # Configuration-driven loading
+        from config import AUDIO_MODEL
+        model_name = AUDIO_MODEL.get("model_name", "AventIQ-AI/wav2vec2-base_speech_emotion_recognition")
+        device = AUDIO_MODEL.get("device", "cpu")
+        
         try:
-            print("Loading Audio Model: ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition...")
+            from config import PERFORMANCE
+            if PERFORMANCE.get("torch_threads"):
+                torch.set_num_threads(PERFORMANCE["torch_threads"])
+
+            print(f"Loading Audio Model: {model_name}...")
             self.pipeline = pipeline(
                 "audio-classification", 
-                model="ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition",
-                device="cpu" # Force CPU for stability on most devices
+                model=model_name,
+                device=device
             )
+            
+            # Disable quantization for now to rule it out as a cause of failure
+            if device == "cpu" and PERFORMANCE.get("use_quantization"):
+                try:
+                    self.pipeline.model = torch.quantization.quantize_dynamic(
+                        self.pipeline.model, {torch.nn.Linear}, dtype=torch.qint8
+                    )
+                    print("✅ Audio model quantized for speed")
+                except Exception as qe:
+                    print(f"Quantization skipped: {qe}")
+            
+            print(f"✅ Audio model loaded: {self.pipeline is not None}")
+
         except Exception as e:
             print(f"⚠️ Failed to load audio model: {e}")
             self.pipeline = None
@@ -71,30 +90,38 @@ class AudioEmotionModel:
                     tmp_path = tmp.name
                 
                 try:
+                    print(f"Loading via Librosa from temp path: {tmp_path}")
                     y, sr = librosa.load(tmp_path, sr=16000)
+                    print(f"Librosa loaded successfully. Array size: {len(y) if y is not None else 0}")
+                except Exception as le:
+                    print(f"Librosa load error: {le}")
+                    y, sr = None, 16000
                 finally:
                     if os.path.exists(tmp_path):
                         os.remove(tmp_path)
 
             if y is None or len(y) == 0:
-                return None, 0.0
+                print("⚠️ CRITICAL: Audio array is empty or None after processing")
+                return "neutral", 0.0 # Return fallback instead of None to prevent app failure
 
             # 2. FEATURE EXTRACTION (Satisfying system requirements)
             features = self.extract_features(y, sr)
             
             # 3. PREDICT
-            # Pass the raw numpy array to the pipeline
-            # The pipeline handles the tensor conversion internally
-            results = self.pipeline(y)
+            print(f"Sending audio to pipeline (array shape: {y.shape})")
+            with torch.inference_mode():
+                results = self.pipeline(y)
+            
+            print(f"Audio raw results: {results}")
             
             # Result format: [{'score': 0.9, 'label': 'angry'}, ...]
-            if not results:
-                return "neutral", 0.5
+            if not results or not isinstance(results, list):
+                print(f"⚠️ Unexpected results format: {results}")
+                return "neutral", 0.0
 
-            # The model labels might be differentAUTHOR's specific capitalization
             top_result = results[0]
-            label = top_result['label'].lower()
-            score = top_result['score']
+            label = str(top_result.get('label', 'neutral')).lower()
+            score = float(top_result.get('score', 0.0))
             
             # Print detailed results for debugging
             print(f"Audio Prediction Results: {results[:3]}")

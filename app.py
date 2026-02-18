@@ -9,6 +9,8 @@ import tempfile
 import os
 import pandas as pd
 from moviepy import VideoFileClip
+import threading
+from concurrent.futures import ThreadPoolExecutor
 
 # Import our custom modules (moved to lazy loading to speed up startup)
 # from text_model import TextIntentModel
@@ -47,52 +49,73 @@ def extract_audio_from_video(video_bytes, file_ext):
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Intent Prediction System",
-    page_icon="🧠",
+    page_title="NEURAL INTENT CORE | Advanced Multimodal AI",
+    page_icon="🔮",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# STUNNING CUSTOM CSS - Premium Glassmorphism Design
+# STUNNING CUSTOM CSS - Ultimate AI Aesthetic
 st.markdown("""
 <style>
     /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;600&family=JetBrains+Mono&display=swap');
     
     :root {
         --primary: #6366f1;
-        --primary-glow: rgba(99, 102, 241, 0.5);
+        --primary-glow: rgba(99, 102, 241, 0.4);
         --secondary: #a855f7;
-        --bg-dark: #0f172a;
-        --card-bg: rgba(30, 41, 59, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.1);
+        --accent: #00f2ff;
+        --bg-dark: #020617;
+        --card-bg: rgba(15, 23, 42, 0.6);
+        --glass-border: rgba(255, 255, 255, 0.08);
         --text-main: #f8fafc;
         --text-dim: #94a3b8;
     }
 
-    /* Global Styles */
+    /* Animated Dynamic Background */
     .stApp {
-        background: radial-gradient(circle at top right, #1e1b4b, #0f172a 50%, #020617);
+        background: #020617;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0, transparent 50%), 
+            radial-gradient(at 50% 100%, rgba(168, 85, 247, 0.15) 0, transparent 50%),
+            radial-gradient(at 100% 0%, rgba(0, 242, 255, 0.05) 0, transparent 50%);
+        background-attachment: fixed;
         color: var(--text-main);
         font-family: 'Outfit', sans-serif;
     }
     
-    h1, h2, h3, h4 {
-        font-family: 'Outfit', sans-serif;
-        font-weight: 700 !important;
-        letter-spacing: -0.02em;
+    /* Entrance Animations */
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); filter: blur(10px); }
+        to { opacity: 1; transform: translateY(0); filter: blur(0); }
+    }
+    
+    @keyframes glowPulse {
+        0% { filter: drop-shadow(0 0 5px var(--primary-glow)); }
+        100% { filter: drop-shadow(0 0 15px var(--primary)); }
     }
 
-    /* Main Header */
+    .card, .main-header, .result-box, .stMetric, .stPlotlyChart {
+        animation: fadeInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    }
+
+    h1, h2, h3, h4 {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800 !important;
+        letter-spacing: -0.03em;
+    }
+
+    /* Main Header - Cyber Deck Design */
     .main-header {
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(12px);
+        background: rgba(15, 23, 42, 0.4);
+        backdrop-filter: blur(20px);
         border: 1px solid var(--glass-border);
-        padding: 3rem 2rem;
-        border-radius: 24px;
+        padding: 4rem 2rem;
+        border-radius: 32px;
         text-align: center;
-        margin-bottom: 3rem;
-        box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        margin-bottom: 3.5rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         position: relative;
         overflow: hidden;
     }
@@ -100,180 +123,179 @@ st.markdown("""
     .main-header::before {
         content: '';
         position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: conic-gradient(from 0deg, transparent, var(--primary), transparent 30%);
-        animation: rotate 10s linear infinite;
-        opacity: 0.1;
-        z-index: -1;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(45deg, transparent, rgba(99, 102, 241, 0.05), transparent);
+        transform: translateX(-100%);
+        animation: scan 3s infinite linear;
     }
 
-    @keyframes rotate {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
+    @keyframes scan {
+        100% { transform: translateX(100%); }
     }
 
     .main-header h1 {
-        background: linear-gradient(135deg, #fff 0%, #cbd5e1 100%);
+        background: linear-gradient(135deg, #fff 30%, #a855f7 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-size: 3.5rem;
+        font-size: 4.5rem;
         margin: 0;
-        filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));
+        line-height: 1;
+        letter-spacing: -0.05em;
     }
     
     .main-header p {
-        color: var(--text-dim);
-        font-size: 1.25rem;
-        margin-top: 1rem;
-        font-weight: 400;
+        color: var(--accent);
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.9rem;
+        margin-top: 1.5rem;
+        font-weight: 500;
         text-transform: uppercase;
-        letter-spacing: 0.2em;
+        letter-spacing: 0.4em;
+        opacity: 0.8;
     }
 
-    /* Card/Module Styles */
+    /* Premium Card Design */
     .card {
         background: var(--card-bg);
-        backdrop-filter: blur(16px);
+        backdrop-filter: blur(24px);
         border: 1px solid var(--glass-border);
-        border-radius: 20px;
-        padding: 2rem;
+        border-radius: 24px;
+        padding: 2.5rem;
         margin-bottom: 2rem;
-        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     }
     
     .card:hover {
-        transform: translateY(-8px);
-        border-color: rgba(99, 102, 241, 0.4);
-        box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(99, 102, 241, 0.1);
+        transform: translateY(-5px) scale(1.01);
+        border-color: rgba(99, 102, 241, 0.3);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        background: rgba(30, 41, 59, 0.6);
     }
     
     /* Input Elements styling */
     .stTextArea textarea {
-        background: rgba(15, 23, 42, 0.8) !important;
+        background: rgba(2, 6, 23, 0.6) !important;
         border: 1px solid var(--glass-border) !important;
-        border-radius: 12px !important;
+        border-radius: 16px !important;
         color: white !important;
-        font-size: 1.1rem !important;
+        font-family: 'Inter', sans-serif !important;
+        padding: 1.2rem !important;
+        transition: border 0.3s ease !important;
+    }
+    
+    .stTextArea textarea:focus {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 2px var(--primary-glow) !important;
     }
 
-    /* Prediction Result Box */
+    /* Prediction Result Box - Hyperglow */
     .result-box {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(20px);
-        padding: 2.5rem;
-        border-radius: 24px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        backdrop-filter: blur(30px);
+        padding: 3rem;
+        border-radius: 32px;
         position: relative;
         text-align: center;
         margin: 2rem 0;
         overflow: hidden;
+        animation: pulse-border 4s infinite alternate ease-in-out;
     }
     
-    .result-box::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        height: 4px;
-        background: linear-gradient(90deg, var(--primary), var(--secondary));
+    @keyframes pulse-border {
+        0% { border-color: rgba(99, 102, 241, 0.2); box-shadow: 0 0 20px rgba(99, 102, 241, 0.1); }
+        100% { border-color: rgba(168, 85, 247, 0.5); box-shadow: 0 0 40px rgba(168, 85, 247, 0.2); }
     }
 
-    /* Intent Badges - Glow version */
+    /* Intent Badges */
     .intent-badge {
-        display: inline-block;
-        padding: 0.6rem 2rem;
+        display: inline-flex;
+        align-items: center;
+        padding: 0.75rem 2.5rem;
         border-radius: 100px;
-        font-weight: 700;
+        font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-size: 0.9rem;
-        margin-top: 1.5rem;
-        border: 1px solid rgba(255,255,255,0.2);
+        letter-spacing: 0.1em;
+        font-size: 0.85rem;
+        margin-top: 2rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
     }
     
-    .badge-inquiry { background: rgba(99, 102, 241, 0.2); color: #818cf8; box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
-    .badge-complaint { background: rgba(244, 63, 94, 0.2); color: #fb7185; box-shadow: 0 0 20px rgba(244, 63, 94, 0.3); }
-    .badge-escalation { background: rgba(234, 179, 8, 0.2); color: #facc15; box-shadow: 0 0 20px rgba(234, 179, 8, 0.3); }
-    .badge-distress { background: rgba(236, 72, 153, 0.2); color: #f472b6; box-shadow: 0 0 20px rgba(236, 72, 153, 0.3); }
-    .badge-neutral { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; box-shadow: 0 0 20px rgba(148, 163, 184, 0.3); }
+    .badge-inquiry { background: rgba(99, 102, 241, 0.15); color: #818cf8; border-color: rgba(99, 102, 241, 0.3); }
+    .badge-complaint { background: rgba(244, 63, 94, 0.15); color: #fb7185; border-color: rgba(244, 63, 94, 0.3); }
+    .badge-escalation { background: rgba(234, 179, 8, 0.15); color: #facc15; border-color: rgba(234, 179, 8, 0.3); }
+    .badge-distress { background: rgba(236, 72, 153, 0.15); color: #f472b6; border-color: rgba(236, 72, 153, 0.3); }
+    .badge-neutral { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.3); }
 
-    /* Sidebar Customization */
-    [data-testid="stSidebar"] {
-        background: #020617;
-        border-right: 1px solid var(--glass-border);
-    }
-    
-    .stCheckbox label {
-        color: var(--text-dim) !important;
-        font-weight: 500 !important;
-    }
-    
-    /* Button Hover Effects */
+    /* Button Styling - Ultimate Gradient */
     .stButton > button {
         width: 100%;
-        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+        background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #d946ef 100%) !important;
+        background-size: 200% auto !important;
         border: none !important;
-        border-radius: 12px !important;
+        border-radius: 16px !important;
         color: white !important;
-        font-weight: 700 !important;
-        padding: 0.8rem !important;
+        font-weight: 800 !important;
+        padding: 1rem !important;
         text-transform: uppercase !important;
-        letter-spacing: 0.1em !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3) !important;
+        letter-spacing: 0.15em !important;
+        transition: all 0.4s ease !important;
+        box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4) !important;
     }
     
     .stButton > button:hover {
-        transform: scale(1.02) !important;
-        box-shadow: 0 15px 25px rgba(99, 102, 241, 0.5) !important;
-        opacity: 0.9;
-    }
-    /* Result Typography */
-    .intent-label {
-        font-size: 0.9rem;
-        color: var(--text-dim);
-        text-transform: uppercase;
-        letter-spacing: 0.2em;
-        margin-bottom: 0.5rem;
+        background-position: right center !important;
+        transform: scale(1.02) translateY(-2px) !important;
+        box-shadow: 0 20px 30px -10px rgba(99, 102, 241, 0.6) !important;
     }
     
-    .intent-value {
-        font-size: 4rem;
-        margin: 0;
-        background: white;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 800;
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(2, 6, 23, 0.5); }
+    ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--primary-glow); }
+
+    /* Metric Styling */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem !important;
+        font-weight: 800 !important;
+        font-family: 'Outfit', sans-serif !important;
+        color: white !important;
+    }
+    
+    [data-testid="stMetricLabel"] {
+        font-family: 'JetBrains Mono', monospace !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+        color: var(--accent) !important;
     }
 
-    /* Action Card styling */
-    .action-card {
-        background: rgba(15, 23, 42, 0.4);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 16px;
-        padding: 1.5rem;
-        margin-top: 2rem;
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        transition: all 0.3s ease;
+    /* AI Insight Box */
+    .insight-text {
+        font-style: italic;
+        border-left: 2px solid var(--accent);
+        padding-left: 1rem;
+        margin: 1rem 0;
+        color: #e2e8f0;
+    }
+
+    /* Pulse for Status */
+    .status-pulse {
+        width: 10px; height: 10px;
+        background: #10b981;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+        animation: pulse 2s infinite;
     }
     
-    .action-icon {
-        background: rgba(99, 102, 241, 0.1);
-        width: 50px;
-        height: 50px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.5rem;
-        border: 1px solid rgba(99, 102, 241, 0.2);
+    @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -416,12 +438,97 @@ def create_intent_distribution(all_scores):
     
     return fig
 
+def create_modality_comparison_chart(modality_probs, all_scores):
+    """Create a grouped bar chart comparing modality predictions."""
+    fig = go.Figure()
+    
+    mod_colors = {
+        'text': '#6366f1',   # Indigo
+        'audio': '#a855f7',  # Purple
+        'vision': '#ec4899', # Pink
+        'fused': '#ffffff'   # White/Glow
+    }
+    
+    # Add bars for each modality
+    for mod, probs in modality_probs.items():
+        fig.add_trace(go.Bar(
+            name=mod.capitalize(),
+            x=INTENT_CLASSES,
+            y=[p * 100 for p in probs],
+            marker_color=mod_colors.get(mod, '#94a3b8'),
+            opacity=0.7
+        ))
+    
+    # Add the final fused result as a special line/outline or bar
+    fig.add_trace(go.Bar(
+        name='FUSED (Result)',
+        x=INTENT_CLASSES,
+        y=[all_scores[c] * 100 for c in INTENT_CLASSES],
+        marker=dict(
+            color='rgba(255,255,255,0.1)',
+            line=dict(color='#ffffff', width=2)
+        )
+    ))
+    
+    fig.update_layout(
+        barmode='group',
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        height=350,
+        margin=dict(l=20, r=20, t=40, b=20),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(color="#94a3b8")
+        ),
+        xaxis=dict(tickfont=dict(color='#94a3b8'), gridcolor='rgba(255,255,255,0.05)'),
+        yaxis=dict(title="Confidence %", tickfont=dict(color='#94a3b8'), gridcolor='rgba(255,255,255,0.05)')
+    )
+    
+    return fig
+
+def generate_ai_insight(intent, confidence, modality_probs, text, audio, vision):
+    """Generate a pseudo-AI explanation of the decision."""
+    if not modality_probs:
+        return "System in standby. Provide input for neural analysis."
+        
+    motives = []
+    
+    if 'text' in modality_probs:
+        text_top = INTENT_CLASSES[np.argmax(modality_probs['text'])]
+        motives.append(f"semantically indicates **{text_top}**")
+        
+    if 'audio' in modality_probs:
+        motives.append(f"acoustic signatures reflect **{audio[0]}** emotions")
+        
+    if 'vision' in modality_probs:
+        motives.append(f"optical biometric data mirrors **{vision[0]}**")
+        
+    if len(motives) > 1:
+        primer = "The convergence of signals " + ", and ".join(motives)
+    elif len(motives) == 1:
+        primer = f"The {list(modality_probs.keys())[0]} input " + motives[0]
+    else:
+        primer = "Neural synthesis complete"
+        
+    if confidence > 0.8:
+        strength = "highly conclusive"
+    elif confidence > 0.5:
+        strength = "moderate"
+    else:
+        strength = "preliminary (divergent signals)"
+        
+    return f"{primer}. Synthesis is **{strength}**, classifying intent as **{intent}**."
+
 def main():
     # Header with Premium UI
     st.markdown("""
     <div class="main-header">
-        <h1>NEURAL INTENT CORE</h1>
-        <p>Adaptive Multimodal Fusion Framework v2.1</p>
+        <h1>NEURAL <span style="color: var(--primary);">INTENT</span> CORE</h1>
+        <p>▷ ADAPTIVE MULTIMODAL SYNTHESIS :: v3.5</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -440,15 +547,42 @@ def main():
         st.markdown("## ⚙️ SYSTEM CONTROL")
         st.markdown("---")
         
+        # NEURAL ENGINE STATUS
+        st.markdown("### 🧬 NEURAL ENGINE STATUS")
+        
+        # Trigger background loading if not started
+        if 'engines_init' not in st.session_state:
+            st.session_state.engines_init = True
+            # We use a thread to trigger the cache_resource functions in background
+            def pre_warm_engines():
+                try:
+                    load_text_engine()
+                    load_audio_engine()
+                    load_vision_engine()
+                except:
+                    pass
+            
+            threading.Thread(target=pre_warm_engines, daemon=True).start()
+        
+        # Simple status labels
+        st.caption("Engine Pulse")
+        st.markdown("""
+            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 10px; border-radius: 12px; display: flex; align-items: center;">
+                <div class="status-pulse"></div>
+                <span style="color: #10b981; font-weight: 600; font-size: 0.9rem;">ACTIVE: NEURAL CORE READY</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("---")
         use_debug = st.checkbox("🐞 Debug Mode", value=False, help="Show detailed fusion logic")
         
         st.markdown("---")
         st.markdown("### 📊 SYSTEM ARCHITECTURE")
         st.info("""
-        **CORE ENGINES:**
-        - 🤖 BERT/DistilBART (Textual)
-        - 🎵 Wav2Vec2 (Acoustic)
-        - 👁️ Vision Transformer (Optical)
+        **CORE ENGINES (OPTIMIZED):**
+        - ⚡ BERT/DistilBART (Text)
+        - ⚡ Wav2Vec2 Base (Audio)
+        - ⚡ Vision Transformer (Vision)
         """)
         
         st.markdown("---")
@@ -468,7 +602,8 @@ def main():
     
     with col1:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.markdown("## 📥 UNIVERSAL NEURAL TERMINAL")
+        st.markdown("## 📥 INPUT SENSOR ARRAY")
+        st.caption("Universal Neural Terminal")
         
         # Performance Mode Selector for hardware isolation
         input_mode = st.pills(
@@ -519,6 +654,7 @@ def main():
 
         elif input_mode == "Media Upload":
             st.markdown("### 📁 MEDIA UPLINK")
+            st.info("💡 Tip: Use **.wav** files for the fastest and most reliable audio analysis.")
             uploaded_media = st.file_uploader(
                 "Drop Media Files",
                 type=['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'avi', 'mov', 'png', 'jpg', 'jpeg'],
@@ -572,6 +708,7 @@ def main():
     with col2:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.markdown("## 🧠 NEURAL SYNTHESIS")
+        st.caption("Fused Adaptive Processor")
         
         # Predict button with better styling
         predict_btn = st.button("🚀 PREDICT INTENT", type="primary", use_container_width=True)
@@ -665,7 +802,7 @@ def main():
                     'vision': w_vision
                 }
                 
-                final_intent, final_conf, all_scores, action = fuse_multimodal(
+                final_intent, final_conf, all_scores, action, modality_probs = fuse_multimodal(
                     text_probs=text_probs,
                     audio_emotion=audio_emotion,
                     vision_emotion=vision_emotion,
@@ -692,31 +829,53 @@ def main():
                 st.markdown("---")
                 
                 # Main result card
-                # Display Stunning Premium Results
                 badge_class = f"badge-{final_intent.lower()}"
-                st.markdown(f"""
+                
+                # AI INSIGHT GENERATION
+                insight = generate_ai_insight(final_intent, final_conf, modality_probs, text_input, audio_emotion, vision_emotion)
+                
+                res_col1, res_col2 = st.columns([1.2, 0.8])
+                
+                with res_col1:
+                    st.markdown(f"""
 <div class="result-box">
 <div class="intent-label">System Analysis Result</div>
 <h2 class="intent-value">{final_intent}</h2>
 <div class="intent-badge {badge_class}">Confidence: {final_conf:.1%}</div>
 <div class="action-card">
-<div class="action-icon">📋</div>
+<div class="action-icon">🤖</div>
 <div style="text-align: left;">
-<div style="font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em;">Recommended Action</div>
-<div style="font-size: 1.25rem; font-weight: 600; color: white;">{action}</div>
+<div style="font-size: 0.75rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.25em;">Neural Trace Insight</div>
+<div class="insight-text" style="font-size: 1rem; margin-top: 5px;">
+{insight}
+</div>
 </div>
 </div>
 </div>
 """, unsafe_allow_html=True)
                 
-                # Confidence gauge
-                st.plotly_chart(create_confidence_gauge(final_conf, final_intent), use_container_width=True)
+                with res_col2:
+                    st.plotly_chart(create_confidence_gauge(final_conf, final_intent), use_container_width=True)
                 
-                # Intent distribution chart
-                st.plotly_chart(create_intent_distribution(all_scores), use_container_width=True)
+                # Modality Comparison (The "Cool" technical view)
+                st.markdown("### 📊 MULTIMODAL OVERLAY")
+                st.plotly_chart(create_modality_comparison_chart(modality_probs, all_scores), use_container_width=True)
                 
+                # Interactive Actions
+                st.markdown("### ⚡ QUICK ACTIONS")
+                act_col1, act_col2, act_col3 = st.columns(3)
+                with act_col1:
+                    if st.button("📝 Draft Reply", use_container_width=True):
+                        st.toast("Drafting response based on intent...")
+                with act_col2:
+                    if st.button("📈 Log Feedback", use_container_width=True):
+                        st.toast("Feedback logged to training set")
+                with act_col3:
+                    if st.button("🚨 Immediate Transfer", use_container_width=True):
+                        st.toast("Transferring to human supervisor...")
+
                 # Detailed Analysis breakdown
-                st.markdown('<div style="margin-top: 3rem;">', unsafe_allow_html=True)
+                st.markdown('<div style="margin-top: 2rem;">', unsafe_allow_html=True)
                 st.markdown("### 🧬 VECTOR ANALYSIS")
                 
                 cols = st.columns(len(INTENT_CLASSES))

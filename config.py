@@ -17,10 +17,10 @@ TEXT_MODEL = {
 
 # Audio Model Configuration
 AUDIO_MODEL = {
-    "model_name": "ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition",
+    "model_name": "Dpngtm/wav2vec2-emotion-recognition",  # Robust base-sized model
     "task": "audio-classification",
-    "device": "cpu",  # Change to "cuda" if you have GPU
-    "sample_rate": 16000,  # Target sample rate for audio
+    "device": "cpu",
+    "sample_rate": 16000,
 }
 
 # Vision Model Configuration
@@ -123,6 +123,8 @@ PERFORMANCE = {
     "max_audio_duration": 30,  # Maximum audio duration in seconds
     "max_image_size": (1920, 1080),  # Maximum image resolution
     "enable_gpu": False,  # Set to True if you have CUDA-capable GPU
+    "use_quantization": True,  # Quantize models for 2-3x speedup on CPU
+    "torch_threads": 4,  # Number of threads for torch to use
 }
 
 # ============================================================================

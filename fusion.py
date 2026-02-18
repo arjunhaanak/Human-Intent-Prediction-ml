@@ -3,26 +3,26 @@ import numpy as np
 # Define global intent classes
 INTENT_CLASSES = ["Inquiry", "Complaint", "Escalation", "Distress", "Neutral"]
 
-# IMPROVED emotion to intent mapping weights for better accuracy
+# OPTIMIZED emotion to intent mapping weights for highest accuracy
 # Rows: Emotions, Cols: Intents (Inquiry, Complaint, Escalation, Distress, Neutral)
 EMOTION_TO_INTENT_MAP = {
-    "angry":      [0.0, 0.20, 0.70, 0.10, 0.0],  # Sharper escalation
-    "happy":      [0.70, 0.0, 0.0, 0.0, 0.30],   # Stronger inquiry
-    "sad":        [0.05, 0.15, 0.0, 0.75, 0.05], # Stronger distress
-    "fear":       [0.0, 0.0, 0.05, 0.95, 0.0],
-    "fearful":    [0.0, 0.0, 0.05, 0.95, 0.0],
-    "neutral":    [0.30, 0.0, 0.0, 0.0, 0.70],   # More neutral, less inquiry
-    "calm":       [0.30, 0.0, 0.0, 0.0, 0.70],
-    "surprise":   [0.60, 0.10, 0.10, 0.10, 0.10],
-    "disgust":    [0.0, 0.80, 0.15, 0.05, 0.0],  # Stronger complaint
-    # Additional emotion mappings
-    "frustrated": [0.0, 0.60, 0.40, 0.0, 0.0],
+    "angry":      [0.0, 0.15, 0.75, 0.10, 0.0],  # Heavy focus on Escalation
+    "happy":      [0.80, 0.0, 0.0, 0.0, 0.20],   # Very strong Inquiry (customer is satisfied/asking)
+    "sad":        [0.05, 0.10, 0.0, 0.80, 0.05], # Very strong Distress
+    "fear":       [0.0, 0.0, 0.10, 0.90, 0.0],   # Almost 100% Distress
+    "fearful":    [0.0, 0.0, 0.10, 0.90, 0.0],
+    "neutral":    [0.40, 0.0, 0.0, 0.0, 0.60],   # Mostly Neutral/Inquiry
+    "calm":       [0.40, 0.0, 0.0, 0.0, 0.60],
+    "surprise":   [0.70, 0.10, 0.10, 0.05, 0.05],# Surprise often means Inquiry
+    "surprised":  [0.70, 0.10, 0.10, 0.05, 0.05],
+    "disgust":    [0.0, 0.85, 0.10, 0.05, 0.0],  # Heavy focus on Complaint
+    "frustrated": [0.0, 0.50, 0.50, 0.0, 0.0],   # Split between Complaint and Escalation
     "worried":    [0.10, 0.10, 0.0, 0.80, 0.0],
-    "confused":   [0.70, 0.10, 0.0, 0.10, 0.10],
-    # Short codes for some models
-    "ang":        [0.0, 0.20, 0.70, 0.10, 0.0],
-    "hap":        [0.70, 0.0, 0.0, 0.0, 0.30],
-    "neu":        [0.30, 0.0, 0.0, 0.0, 0.70],
+    "confused":   [0.85, 0.05, 0.0, 0.05, 0.05], # Confusion is usually an Inquiry
+    # Short codes
+    "ang":        [0.0, 0.15, 0.75, 0.10, 0.0],
+    "hap":        [0.80, 0.0, 0.0, 0.0, 0.20],
+    "neu":        [0.40, 0.0, 0.0, 0.0, 0.60],
 }
 
 def normalize(probs):
@@ -185,4 +185,4 @@ def fuse_multimodal(text_probs=None, audio_emotion=None, vision_emotion=None, we
     else:  # Neutral
         action = "ROUTINE SYSTEMATIC ROUTING"
         
-    return best_intent, best_conf, all_scores, action
+    return best_intent, best_conf, all_scores, action, modality_probs
