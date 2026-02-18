@@ -281,6 +281,15 @@ st.markdown("""
         color: #e2e8f0;
     }
 
+    /* Mobile Responsiveness & PWA Enhancements */
+    @media (max-width: 768px) {
+        .main-header h1 { font-size: 2.2rem; }
+        .main-header { padding: 2rem 1rem; margin-bottom: 2rem; }
+        .intent-value { font-size: 2.5rem; }
+        .card { padding: 1.5rem; }
+        .result-box { padding: 1.5rem; }
+    }
+
     /* Pulse for Status */
     .status-pulse {
         width: 10px; height: 10px;
@@ -298,6 +307,12 @@ st.markdown("""
         100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
     }
 </style>
+
+<!-- PWA & Mobile Meta Tags -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#020617">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 """, unsafe_allow_html=True)
 
 # Initialize session state for models (load on demand)
