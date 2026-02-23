@@ -18,8 +18,8 @@ from concurrent.futures import ThreadPoolExecutor
 # from vision_model import VisionEmotionModel
 from fusion import fuse_multimodal, INTENT_CLASSES
 
-def extract_audio_from_video(video_bytes, file_ext):
-    """Extract audio from video file bytes and return as audio file path."""
+def process_video_input(video_bytes, file_ext):
+    """Process video to extract both audio and sample frames for vision analysis."""
     try:
         # Create temp video file
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
@@ -29,12 +29,23 @@ def extract_audio_from_video(video_bytes, file_ext):
         video_path = tfile.name
         audio_path = video_path.replace(file_ext, ".wav")
         
-        # Load video and extract audio
+        # Load video
         video = VideoFileClip(video_path)
-        if video.audio is None:
-            return None, "No audio track found in video"
+        
+        # 1. Extract Audio
+        has_audio = False
+        if video.audio is not None:
+            video.audio.write_audiofile(audio_path, logger=None)
+            has_audio = True
             
-        video.audio.write_audiofile(audio_path, logger=None)
+        # 2. Extract sample frames (e.g., 5 frames spread across the video)
+        duration = video.duration
+        sample_times = np.linspace(0, duration * 0.9, 5)
+        frames = []
+        for t in sample_times:
+            frame = video.get_frame(t)
+            frames.append(frame)
+            
         video.close()
         
         # Clean up video file
@@ -43,9 +54,9 @@ def extract_audio_from_video(video_bytes, file_ext):
         except:
             pass
             
-        return audio_path, None
+        return (audio_path if has_audio else None, frames, None)
     except Exception as e:
-        return None, str(e)
+        return (None, None, str(e))
 
 # Page configuration
 st.set_page_config(
@@ -623,7 +634,7 @@ def main():
         # Performance Mode Selector for hardware isolation
         input_mode = st.pills(
             "Select Processing Modality",
-            ["Textual", "Acoustic", "Optical", "Media Upload", "Live Unified"],
+            ["Textual", "Acoustic", "Optical", "Media Upload", "Live Unified", "LIVE NEURAL SCAN"],
             selection_mode="single",
             default="Textual",
             key="modality_pills"
@@ -686,13 +697,98 @@ def main():
                         image_input = Image.open(file)
                         detected_modalities.append(f"👁️ IMAGE ({file.name})")
                     elif ext in ['.mp4', '.avi', '.mov']:
-                        with st.spinner("Extracting stream..."):
-                            extracted_path, _ = extract_audio_from_video(file.read(), ext)
-                            if extracted_path:
-                                with open(extracted_path, 'rb') as f:
+                        with st.spinner("Processing video streams (Vision + Audio)..."):
+                            extracted_audio, video_frames, _ = process_video_input(file.read(), ext)
+                            if extracted_audio:
+                                with open(extracted_audio, 'rb') as f:
                                     audio_file = io.BytesIO(f.read())
                                     audio_file.name = "vid_stream.wav"
-                                detected_modalities.append(f"🎬 VIDEO-AUDIO ({file.name})")
+                                detected_modalities.append(f"� VIDEO-AUDIO ({file.name})")
+                            
+                            if video_frames:
+                                # We store frames in session state for prediction step
+                                st.session_state.video_frames = video_frames
+                                detected_modalities.append(f"👁️ VIDEO-FRAMES ({len(video_frames)} samples)")
+
+        elif input_mode == "LIVE NEURAL SCAN":
+            st.markdown("### 🧬 REAL-TIME NEURAL SCAN")
+            st.info("Continuous intent prediction via direct camera uplink.")
+            st.warning("Ensure room is well-lit for optimal facial vector tracking.")
+            
+            # Use columns for scan controls
+            c1, c2 = st.columns(2)
+            with c1:
+                run_scan = st.toggle("ACTIVATE NEURAL SCANNER", value=False, key="scan_active_toggle")
+            with c2:
+                f_rate = st.select_slider("Scan Frequency", options=["Low", "Medium", "High"], value="Medium")
+                sleep_time = {"Low": 0.5, "Medium": 0.1, "High": 0.02}[f_rate]
+            
+            if run_scan:
+                import cv2
+                # Initialize camera
+                cap = cv2.VideoCapture(0)
+                
+                if not cap.isOpened():
+                    st.error("❌ CAMERA NOT FOUND: Please check hardware connection or permissions.")
+                else:
+                    frame_placeholder = st.empty()
+                    status_placeholder = st.empty()
+                    
+                    # Pre-load vision engine
+                    if vision_model is None:
+                        with st.spinner("🔄 Synchronizing Vision Engine..."):
+                            vision_model = load_vision_engine()
+                    
+                    # Import once outside loop
+                    from fusion import map_emotion_to_intent_probs, INTENT_CLASSES
+                    
+                    try:
+                        while cap.isOpened() and st.session_state.get("scan_active_toggle", False):
+                            ret, frame = cap.read()
+                            if not ret: 
+                                st.error("Failed to capture stream.")
+                                break
+                            
+                            # Process frame
+                            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            label, score, annotated_frame = vision_model.predict(frame_rgb)
+                            
+                            # Map to intent for display
+                            if label:
+                                intent_probs = map_emotion_to_intent_probs(label, score)
+                                intent_label = INTENT_CLASSES[np.argmax(intent_probs)]
+                                conf = max(intent_probs)
+                                
+                                status_placeholder.markdown(f"""
+                                <div style="background: rgba(99, 102, 241, 0.2); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); animation: pulse-border 2s infinite alternate;">
+                                    <span style="color: var(--accent); font-family: 'JetBrains Mono'; font-size: 0.8rem;">[ LIVE NEURAL FEED ]</span><br>
+                                    <span style="color: var(--text-dim); font-size: 0.7rem;">DETECTED: {label.upper()} ({score:.1%})</span><br>
+                                    <span style="color: white; font-size: 1.4rem; font-weight: 800; letter-spacing: 0.05em;">INTENT: {intent_label.upper()}</span>
+                                    <span style="float: right; color: var(--accent); font-weight: 700;">{conf:.1%}</span>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                status_placeholder.markdown("""
+                                <div style="background: rgba(30, 41, 59, 0.4); padding: 10px; border-radius: 12px; border: 1px dashed var(--text-dim); text-align: center;">
+                                    <span style="color: var(--text-dim); font-style: italic;">SENSING FACIAL VECTORS...</span>
+                                </div>
+                                """, unsafe_allow_html=True)
+                                annotated_frame = frame_rgb
+                            
+                            frame_placeholder.image(annotated_frame, channels="RGB", use_container_width=True)
+                            
+                            time.sleep(sleep_time)
+                            
+                            # Small trick: if we have a way to force a rerun or check button state?
+                            # Streamlit while loops are blocking, but the toggle state in session_state
+                            # might be updated if the user clicks it? Actually no, the script must rerun.
+                            # But st.toggle automatically reruns. The issue is detecting "off" during loop.
+                            # We can't easily. But Streamlit usually kills the script execution on rerun.
+                    except Exception as loop_err:
+                        st.error(f"Scan Loop Error: {loop_err}")
+                    finally:
+                        cap.release()
+                        st.info("Scanner Offline.")
 
         elif input_mode == "Live Unified":
             st.markdown("### 🔴 MULTIMODAL LIVE SESSION")
@@ -730,8 +826,9 @@ def main():
         
         if predict_btn:
             # Check if at least one input is provided
-            if not any([text_input, audio_file, image_input]):
-                st.warning("⚠️ Please provide at least one input (Text, Audio, or Image)!")
+            has_video = ('video_frames' in st.session_state and input_mode == "Media Upload")
+            if not any([text_input, audio_file, image_input, has_video]):
+                st.warning("⚠️ Please provide at least one input (Text, Audio, Image, or Video)!")
                 st.markdown('</div>', unsafe_allow_html=True)
                 return
             
@@ -781,7 +878,7 @@ def main():
                     st.error(f"Acoustic processing error: {e}")
             
             # 3. Process Vision Component
-            if image_input:
+            if image_input or ('video_frames' in st.session_state and input_mode == "Media Upload"):
                 status_text.text("👁️ ANALYZING OPTICAL VECTORS...")
                 progress_bar.progress(75)
                 try:
@@ -790,12 +887,19 @@ def main():
                         with st.spinner("🔄 Loading Vision Engine..."):
                             vision_model = load_vision_engine()
                             
-                    emotion_label, emotion_conf, annotated_img = vision_model.predict(image_input)
+                    # If we have extracted video frames, use them
+                    if 'video_frames' in st.session_state and input_mode == "Media Upload":
+                        emotion_label, emotion_conf = vision_model.predict_batch(st.session_state.video_frames)
+                        # Clear for next run
+                        del st.session_state.video_frames
+                    else:
+                        emotion_label, emotion_conf, annotated_img = vision_model.predict(image_input)
+                        if use_debug:
+                            st.image(annotated_img, caption="Vector Overlay", use_container_width=True)
+                    
                     if emotion_label:
                         vision_emotion = (emotion_label, emotion_conf)
                         active_signals.append(f"Vision: {emotion_label}")
-                        if use_debug:
-                            st.image(annotated_img, caption="Vector Overlay", use_container_width=True)
                     else:
                         st.warning("⚠️ OPTICAL LOCK FAILED: Face not detected")
                 except Exception as e:

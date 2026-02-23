@@ -123,3 +123,28 @@ class VisionEmotionModel:
         except Exception as e:
             print(f"Vision prediction error: {e}")
             return None, 0.0, frame
+
+    def predict_batch(self, frames):
+        """
+        Predict emotions for a batch of frames and return the average scores.
+        """
+        if self.classifier is None or not frames:
+            return None, 0.0
+            
+        all_results = []
+        for frame in frames:
+            label, score, _ = self.predict(frame)
+            if label:
+                all_results.append((label, score))
+        
+        if not all_results:
+            return None, 0.0
+            
+        # Simplistic aggregation: most frequent label with average score for that label
+        from collections import Counter
+        labels = [r[0] for r in all_results]
+        most_common_label = Counter(labels).most_common(1)[0][0]
+        
+        avg_score = np.mean([r[1] for r in all_results if r[0] == most_common_label])
+        
+        return most_common_label, avg_score
