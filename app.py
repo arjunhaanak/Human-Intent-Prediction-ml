@@ -576,31 +576,30 @@ def main():
         # NEURAL ENGINE STATUS
         st.markdown("### 🧬 NEURAL ENGINE STATUS")
         
-        # Trigger background loading if not started
-        if 'engines_init' not in st.session_state:
-            st.session_state.engines_init = True
-            # We use a thread to trigger the cache_resource functions in background
-            def pre_warm_engines():
-                try:
-                    load_text_engine()
-                    load_audio_engine()
-                    load_vision_engine()
-                except:
-                    pass
-            
-            threading.Thread(target=pre_warm_engines, daemon=True).start()
-        
-        # Simple status labels
-        st.caption("Engine Pulse")
+        # Synchronous System Warm-up
+        if 'system_ready' not in st.session_state:
+            with st.status("🛠️ INITIALIZING NEURAL CORE...", expanded=True) as status:
+                st.write("📡 Pre-loading Text Engine (BERT)...")
+                load_text_engine()
+                st.write("🎙️ Pre-loading Acoustic Engine (Wav2Vec2)...")
+                load_audio_engine()
+                st.write("👁️ Pre-loading Optical Engine (ViT)...")
+                load_vision_engine()
+                status.update(label="✅ NEURAL CORE SYNCHRONIZED", state="complete", expanded=False)
+            st.session_state.system_ready = True
+            st.rerun()
+
+        # Simple status labels (Green Pulse)
         st.markdown("""
             <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2); padding: 10px; border-radius: 12px; display: flex; align-items: center;">
                 <div class="status-pulse"></div>
-                <span style="color: #10b981; font-weight: 600; font-size: 0.9rem;">ACTIVE: NEURAL CORE READY</span>
+                <span style="color: #10b981; font-weight: 600; font-size: 0.9rem;">READY: HIGH-SPEED INFERENCE ACTIVE</span>
             </div>
         """, unsafe_allow_html=True)
         
         st.markdown("---")
         use_debug = st.checkbox("🐞 Debug Mode", value=False, help="Show detailed fusion logic")
+
         
         st.markdown("---")
         st.markdown("### 📊 SYSTEM ARCHITECTURE")
@@ -631,14 +630,23 @@ def main():
         st.markdown("## 📥 INPUT SENSOR ARRAY")
         st.caption("Universal Neural Terminal")
         
-        # Performance Mode Selector for hardware isolation
-        input_mode = st.pills(
-            "Select Processing Modality",
-            ["Textual", "Acoustic", "Optical", "Media Upload", "Live Unified", "LIVE NEURAL SCAN"],
-            selection_mode="single",
-            default="Textual",
-            key="modality_pills"
-        )
+        st.markdown("### ENABLE SENSORS")
+        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+        
+        if 'sensor_text' not in st.session_state: st.session_state.sensor_text = True
+        if 'sensor_voice' not in st.session_state: st.session_state.sensor_voice = False
+        if 'sensor_image' not in st.session_state: st.session_state.sensor_image = False
+        if 'sensor_video' not in st.session_state: st.session_state.sensor_video = False
+
+        with m_col1:
+            st.session_state.sensor_text = st.toggle("📝 TEXT", value=st.session_state.sensor_text)
+        with m_col2:
+            st.session_state.sensor_voice = st.toggle("🎤 VOICE", value=st.session_state.sensor_voice)
+        with m_col3:
+            st.session_state.sensor_image = st.toggle("🖼️ IMAGE", value=st.session_state.sensor_image)
+        with m_col4:
+            st.session_state.sensor_video = st.toggle("📹 LIVE", value=st.session_state.sensor_video)
+
         
         st.markdown("---")
         
@@ -647,80 +655,65 @@ def main():
         image_input = None
         detected_modalities = []
 
-        if input_mode == "Textual":
-            st.markdown("### ✍️ TEXT CONSOLE")
+        # Always available based on toggles
+        if st.session_state.sensor_text:
+            st.markdown("#### ✍️ TEXT CONSOLE")
             text_input = st.text_area(
-                "Neural Command Input",
+                "Neural Message",
                 placeholder="Type message for analysis...",
-                height=150,
-                key="p_text_input"
+                height=100,
+                key="p_text_input_v2"
             )
             if text_input: detected_modalities.append("📝 TEXTUAL")
 
-        elif input_mode == "Acoustic":
-            st.markdown("### 🎙️ ACOUSTIC SENSOR")
-            st.info("Direct microphone uplink activated.")
+        if st.session_state.sensor_voice:
+            st.markdown("#### 🎙️ ACOUSTIC SENSOR")
             try:
                 from audio_recorder_streamlit import audio_recorder
-                live_audio_bytes = audio_recorder(text="Record Voice", icon_size="2x", key="p_mic_rec")
+                live_audio_bytes = audio_recorder(text="Record Voice", icon_size="2x", key="p_mic_rec_v2")
                 if live_audio_bytes:
                     audio_file = io.BytesIO(live_audio_bytes)
                     audio_file.name = "live_audio.wav"
                     detected_modalities.append("🎤 LIVE ACOUSTIC")
+                    
+                    # PROACTIVE AUDIO ANALYSIS: Store for live synthesis
+                    if audio_model is None: audio_model = load_audio_engine()
+                    with st.spinner("🎙️ Synchronizing Acoustic Trace..."):
+                        a_label, a_conf = audio_model.predict(audio_file)
+                        st.session_state.last_audio_emotion = (a_label, a_conf)
+                        st.toast(f"Audio Synced: {a_label.upper()}", icon="🎤")
+                
+                if 'last_audio_emotion' in st.session_state:
+                    st.caption(f"Active Audio Trace: **{st.session_state.last_audio_emotion[0].upper()}** ({st.session_state.last_audio_emotion[1]:.1%})")
+                    if st.button("🗑️ Clear Audio Trace", key="clear_audio_v2"):
+                        del st.session_state.last_audio_emotion
+                        st.rerun()
             except Exception as e:
                 st.error("Audio hardware unreachable.")
 
-        elif input_mode == "Optical":
-            st.markdown("### 👁️ OPTICAL SENSOR")
-            st.info("Direct camera-only uplink activated.")
-            live_vision_img = st.camera_input("Capture Facial Vector", key="p_cam_inp")
-            if live_vision_img:
-                image_input = Image.open(live_vision_img)
-                detected_modalities.append("📷 LIVE OPTICAL")
 
-        elif input_mode == "Media Upload":
-            st.markdown("### 📁 MEDIA UPLINK")
-            st.info("💡 Tip: Use **.wav** files for the fastest and most reliable audio analysis.")
-            uploaded_media = st.file_uploader(
-                "Drop Media Files",
-                type=['wav', 'mp3', 'm4a', 'flac', 'ogg', 'mp4', 'avi', 'mov', 'png', 'jpg', 'jpeg'],
-                key="p_upload_terminal",
-                accept_multiple_files=True
-            )
-            if uploaded_media:
-                for file in uploaded_media:
-                    ext = os.path.splitext(file.name)[1].lower()
-                    if ext in ['.wav', '.mp3', '.m4a', '.flac', '.ogg']:
-                        audio_file = file
-                        detected_modalities.append(f"🎧 AUDIO ({file.name})")
-                    elif ext in ['.png', '.jpg', '.jpeg']:
-                        image_input = Image.open(file)
-                        detected_modalities.append(f"👁️ IMAGE ({file.name})")
-                    elif ext in ['.mp4', '.avi', '.mov']:
-                        with st.spinner("Processing video streams (Vision + Audio)..."):
-                            extracted_audio, video_frames, _ = process_video_input(file.read(), ext)
-                            if extracted_audio:
-                                with open(extracted_audio, 'rb') as f:
-                                    audio_file = io.BytesIO(f.read())
-                                    audio_file.name = "vid_stream.wav"
-                                detected_modalities.append(f"� VIDEO-AUDIO ({file.name})")
-                            
-                            if video_frames:
-                                # We store frames in session state for prediction step
-                                st.session_state.video_frames = video_frames
-                                detected_modalities.append(f"👁️ VIDEO-FRAMES ({len(video_frames)} samples)")
+        if st.session_state.sensor_image:
+            st.markdown("#### �️ OPTICAL SENSOR")
+            uploaded_img = st.file_uploader("Upload Image", type=['png', 'jpg', 'jpeg'], key="p_img_up_v2")
+            cam_img = st.camera_input("Take Snapshot", key="p_cam_snap_v2")
+            
+            if uploaded_img:
+                image_input = Image.open(uploaded_img)
+                detected_modalities.append("�️ UPLOADED IMAGE")
+            elif cam_img:
+                image_input = Image.open(cam_img)
+                detected_modalities.append("📷 SNAPSHOT")
 
-        elif input_mode == "LIVE NEURAL SCAN":
-            st.markdown("### 🧬 REAL-TIME NEURAL SCAN")
+        if st.session_state.sensor_video:
+            st.markdown("#### 📹 REAL-TIME NEURAL SCAN")
             st.info("Continuous intent prediction via direct camera uplink.")
-            st.warning("Ensure room is well-lit for optimal facial vector tracking.")
             
             # Use columns for scan controls
             c1, c2 = st.columns(2)
             with c1:
-                run_scan = st.toggle("ACTIVATE NEURAL SCANNER", value=False, key="scan_active_toggle")
+                run_scan = st.toggle("ACTIVATE NEURAL SCANNER", value=False, key="scan_active_toggle_v2")
             with c2:
-                f_rate = st.select_slider("Scan Frequency", options=["Low", "Medium", "High"], value="Medium")
+                f_rate = st.select_slider("Scan Frequency", options=["Low", "Medium", "High"], value="Medium", key="f_rate_v2")
                 sleep_time = {"Low": 0.5, "Medium": 0.1, "High": 0.02}[f_rate]
             
             if run_scan:
@@ -738,74 +731,67 @@ def main():
                     if vision_model is None:
                         with st.spinner("🔄 Synchronizing Vision Engine..."):
                             vision_model = load_vision_engine()
-                    
-                    # Import once outside loop
-                    from fusion import map_emotion_to_intent_probs, INTENT_CLASSES
+                    if text_model is None and st.session_state.sensor_text:
+                        text_model = load_text_engine()
+                    if audio_model is None and st.session_state.sensor_voice:
+                        audio_model = load_audio_engine()
                     
                     try:
-                        while cap.isOpened() and st.session_state.get("scan_active_toggle", False):
+
+                        while cap.isOpened() and st.session_state.get("scan_active_toggle_v2", False):
                             ret, frame = cap.read()
                             if not ret: 
                                 st.error("Failed to capture stream.")
                                 break
                             
-                            # Process frame
+                            # Process Vision
                             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                             label, score, annotated_frame = vision_model.predict(frame_rgb)
                             
-                            # Map to intent for display
-                            if label:
-                                intent_probs = map_emotion_to_intent_probs(label, score)
-                                intent_label = INTENT_CLASSES[np.argmax(intent_probs)]
-                                conf = max(intent_probs)
-                                
-                                status_placeholder.markdown(f"""
-                                <div style="background: rgba(99, 102, 241, 0.2); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); animation: pulse-border 2s infinite alternate;">
-                                    <span style="color: var(--accent); font-family: 'JetBrains Mono'; font-size: 0.8rem;">[ LIVE NEURAL FEED ]</span><br>
-                                    <span style="color: var(--text-dim); font-size: 0.7rem;">DETECTED: {label.upper()} ({score:.1%})</span><br>
-                                    <span style="color: white; font-size: 1.4rem; font-weight: 800; letter-spacing: 0.05em;">INTENT: {intent_label.upper()}</span>
-                                    <span style="float: right; color: var(--accent); font-weight: 700;">{conf:.1%}</span>
+                            v_emotion = (label, score) if label else None
+                            
+                            # Integrate Text if available
+                            t_probs = None
+                            if st.session_state.sensor_text and text_input:
+                                t_probs, _, _ = text_model.predict(text_input)
+                            
+                            # Integrate Last Audio if available
+                            a_emotion = st.session_state.get('last_audio_emotion') if st.session_state.sensor_voice else None
+                            
+                            # FUSE LIVE
+                            f_intent, f_conf, f_scores, f_action, f_mod_probs = fuse_multimodal(
+                                text_probs=t_probs,
+                                vision_emotion=v_emotion,
+                                audio_emotion=a_emotion, 
+                                weights={'text': w_text, 'audio': w_audio, 'vision': w_vision}
+                            )
+                            
+                            # Update UI
+                            audio_indicator = f'<span style="color: #a855f7; font-size: 0.7rem;">+ 🎤 AUDIO ({a_emotion[0].upper()})</span>' if a_emotion else ''
+                            
+                            status_placeholder.markdown(f"""
+                            <div style="background: rgba(99, 102, 241, 0.2); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); animation: pulse-border 2s infinite alternate;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="color: var(--accent); font-family: 'JetBrains Mono'; font-size: 0.8rem;">[ LIVE NEURAL FEED ]</span>
+                                    <span style="color: #10b981; font-size: 0.7rem;">● LIVE SYNTHESIS ACTIVE</span>
                                 </div>
-                                """, unsafe_allow_html=True)
-                            else:
-                                status_placeholder.markdown("""
-                                <div style="background: rgba(30, 41, 59, 0.4); padding: 10px; border-radius: 12px; border: 1px dashed var(--text-dim); text-align: center;">
-                                    <span style="color: var(--text-dim); font-style: italic;">SENSING FACIAL VECTORS...</span>
+                                <div style="margin-top: 10px;">
+                                    <span style="color: var(--text-dim); font-size: 0.8rem;">DETECTED INTENT: {audio_indicator}</span><br>
+                                    <span style="color: white; font-size: 1.8rem; font-weight: 800; letter-spacing: 0.05em;">{f_intent.upper()}</span>
+                                    <span style="float: right; color: var(--accent); font-size: 1.2rem; font-weight: 700; margin-top: 10px;">{f_conf:.1%}</span>
                                 </div>
-                                """, unsafe_allow_html=True)
-                                annotated_frame = frame_rgb
+                            </div>
+                            """, unsafe_allow_html=True)
+
                             
                             frame_placeholder.image(annotated_frame, channels="RGB", use_container_width=True)
-                            
                             time.sleep(sleep_time)
                             
-                            # Small trick: if we have a way to force a rerun or check button state?
-                            # Streamlit while loops are blocking, but the toggle state in session_state
-                            # might be updated if the user clicks it? Actually no, the script must rerun.
-                            # But st.toggle automatically reruns. The issue is detecting "off" during loop.
-                            # We can't easily. But Streamlit usually kills the script execution on rerun.
                     except Exception as loop_err:
                         st.error(f"Scan Loop Error: {loop_err}")
                     finally:
                         cap.release()
                         st.info("Scanner Offline.")
-
-        elif input_mode == "Live Unified":
-            st.markdown("### 🔴 MULTIMODAL LIVE SESSION")
-            st.warning("Synchronized sensor array: Camera and Microphone will activate together.")
-            u_col1, u_col2 = st.columns(2)
-            with u_col1:
-                from audio_recorder_streamlit import audio_recorder
-                u_audio = audio_recorder(text="Mic Sync", icon_size="2x", key="p_u_mic")
-                if u_audio:
-                    audio_file = io.BytesIO(u_audio)
-                    audio_file.name = "sync_audio.wav"
-                    detected_modalities.append("🎤 SYNC AUDIO")
-            with u_col2:
-                u_img = st.camera_input("Cam Sync", key="p_u_cam")
-                if u_img:
-                    image_input = Image.open(u_img)
-                    detected_modalities.append("📷 SYNC VISION")
 
         # DYNAMIC VALIDATION FEEDBACK
         if detected_modalities:
@@ -822,205 +808,133 @@ def main():
         st.caption("Fused Adaptive Processor")
         
         # Predict button with better styling
-        predict_btn = st.button("🚀 PREDICT INTENT", type="primary", use_container_width=True)
+        predict_btn = st.button("🚀 EXECUTE PREDICTION", type="primary", use_container_width=True)
         
-        if predict_btn:
-            # Check if at least one input is provided
-            has_video = ('video_frames' in st.session_state and input_mode == "Media Upload")
-            if not any([text_input, audio_file, image_input, has_video]):
-                st.warning("⚠️ Please provide at least one input (Text, Audio, Image, or Video)!")
-                st.markdown('</div>', unsafe_allow_html=True)
-                return
-            
-            # Progress tracking
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            # Storage for modality results
-            text_probs = None
-            audio_emotion = None
-            vision_emotion = None
-            
-            # Unified Processing Queue
-            active_signals = []
-            
-            # 1. Process Text Component
-            if text_input:
-                status_text.text("📡 INTERCEPTING TEXT STREAM...")
-                progress_bar.progress(20)
-                try:
-                    # Lazy load text model if needed
-                    if text_model is None:
-                        with st.spinner("🔄 Loading Text Engine..."):
-                            text_model = load_text_engine()
-                    
-                    scores, primary, conf = text_model.predict(text_input)
-                    text_probs = scores
-                    active_signals.append(f"Text: {primary}")
-                except Exception as e:
-                    st.error(f"Text sequence error: {e}")
-            
-            # 2. Process Audio Component
-            if audio_file:
-                status_text.text("🎙️ DECODING ACOUSTIC SIGNALS...")
-                progress_bar.progress(50)
-                try:
-                    # Lazy load audio model if needed
-                    if audio_model is None:
-                        with st.spinner("🔄 Loading Audio Engine..."):
-                            audio_model = load_audio_engine()
-                            
-                    emotion_label, emotion_conf = audio_model.predict(audio_file)
-                    if emotion_label:
-                        audio_emotion = (emotion_label, emotion_conf)
-                        active_signals.append(f"Audio: {emotion_label}")
-                except Exception as e:
-                    st.error(f"Acoustic processing error: {e}")
-            
-            # 3. Process Vision Component
-            if image_input or ('video_frames' in st.session_state and input_mode == "Media Upload"):
-                status_text.text("👁️ ANALYZING OPTICAL VECTORS...")
-                progress_bar.progress(75)
-                try:
-                    # Lazy load vision model if needed
-                    if vision_model is None:
-                        with st.spinner("🔄 Loading Vision Engine..."):
-                            vision_model = load_vision_engine()
-                            
-                    # If we have extracted video frames, use them
-                    if 'video_frames' in st.session_state and input_mode == "Media Upload":
-                        emotion_label, emotion_conf = vision_model.predict_batch(st.session_state.video_frames)
-                        # Clear for next run
-                        del st.session_state.video_frames
-                    else:
+        if predict_btn or (st.session_state.sensor_video and st.session_state.get("scan_active_toggle_v2", False)):
+            # If it's a manual button press, we do the full deep analysis
+            if predict_btn:
+                # Check if at least one input is provided
+                if not any([text_input, audio_file, image_input]):
+                    st.warning("⚠️ Please provide at least one input (Text, Audio, or Image)!")
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    return
+                
+                # Progress tracking
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                
+                # Storage for modality results
+                text_probs = None
+                audio_emotion = None
+                vision_emotion = None
+                active_signals = []
+                
+                # 1. Process Text Component
+                if st.session_state.sensor_text and text_input:
+                    status_text.text("📡 INTERCEPTING TEXT STREAM...")
+                    progress_bar.progress(20)
+                    try:
+                        if text_model is None: text_model = load_text_engine()
+                        scores, primary, conf = text_model.predict(text_input)
+                        text_probs = scores
+                        active_signals.append(f"Text")
+                    except Exception as e: st.error(f"Text error: {e}")
+                
+                # 2. Process Audio Component
+                if st.session_state.sensor_voice and audio_file:
+                    status_text.text("🎙️ DECODING ACOUSTIC SIGNALS...")
+                    progress_bar.progress(50)
+                    try:
+                        if audio_model is None: audio_model = load_audio_engine()
+                        emotion_label, emotion_conf = audio_model.predict(audio_file)
+                        if emotion_label:
+                            audio_emotion = (emotion_label, emotion_conf)
+                            active_signals.append(f"Audio")
+                    except Exception as e: st.error(f"Audio error: {e}")
+                
+                # 3. Process Vision Component
+                if st.session_state.sensor_image and image_input:
+                    status_text.text("👁️ ANALYZING OPTICAL VECTORS...")
+                    progress_bar.progress(75)
+                    try:
+                        if vision_model is None: vision_model = load_vision_engine()
                         emotion_label, emotion_conf, annotated_img = vision_model.predict(image_input)
-                        if use_debug:
-                            st.image(annotated_img, caption="Vector Overlay", use_container_width=True)
+                        if emotion_label:
+                            vision_emotion = (emotion_label, emotion_conf)
+                            active_signals.append(f"Vision")
+                            if use_debug: st.image(annotated_img, caption="Vector Overlay", use_container_width=True)
+                    except Exception as e: st.error(f"Vision error: {e}")
+                
+                # Fusion
+                status_text.text("🔄 Fusing multimodal data...")
+                progress_bar.progress(90)
+                
+                try:
+                    # Create weights dictionary
+                    fusion_weights = {'text': w_text, 'audio': w_audio, 'vision': w_vision}
                     
-                    if emotion_label:
-                        vision_emotion = (emotion_label, emotion_conf)
-                        active_signals.append(f"Vision: {emotion_label}")
-                    else:
-                        st.warning("⚠️ OPTICAL LOCK FAILED: Face not detected")
-                except Exception as e:
-                    st.error(f"Vision computation error: {e}")
-            
-            # High-Level Convergence Status
-            if active_signals:
-                st.info(f"🧬 SIGNAL CONVERGENCE: {' + '.join(active_signals)}")
-            
-            # Fusion
-            status_text.text("🔄 Fusing multimodal data...")
-            progress_bar.progress(90)
-            
-            try:
-                # Create weights dictionary
-                fusion_weights = {
-                    'text': w_text,
-                    'audio': w_audio,
-                    'vision': w_vision
-                }
+                    final_intent, final_conf, all_scores, action, modality_probs = fuse_multimodal(
+                        text_probs=text_probs,
+                        audio_emotion=audio_emotion,
+                        vision_emotion=vision_emotion,
+                        weights=fusion_weights
+                    )
+                    
+                    # Add to history
+                    add_to_history(text_input, "Audio" if audio_file else None, "Image" if image_input else None, final_intent, final_conf, action)
                 
-                final_intent, final_conf, all_scores, action, modality_probs = fuse_multimodal(
-                    text_probs=text_probs,
-                    audio_emotion=audio_emotion,
-                    vision_emotion=vision_emotion,
-                    weights=fusion_weights
-                )
-                
-                # Add to history
-                add_to_history(
-                    text_input if use_text else None, 
-                    "Audio File" if use_audio and audio_file else None, 
-                    "Vision Input" if use_vision and image_input else None,
-                    final_intent, 
-                    final_conf, 
-                    action
-                )
-            
-                progress_bar.progress(100)
-                status_text.text("✅ Analysis complete!")
-                time.sleep(0.5)
-                progress_bar.empty()
-                status_text.empty()
-                
-                # Display stunning results
-                st.markdown("---")
-                
-                # Main result card
-                badge_class = f"badge-{final_intent.lower()}"
-                
-                # AI INSIGHT GENERATION
-                insight = generate_ai_insight(final_intent, final_conf, modality_probs, text_input, audio_emotion, vision_emotion)
-                
-                res_col1, res_col2 = st.columns([1.2, 0.8])
-                
-                with res_col1:
-                    st.markdown(f"""
-<div class="result-box">
-<div class="intent-label">System Analysis Result</div>
-<h2 class="intent-value">{final_intent}</h2>
-<div class="intent-badge {badge_class}">Confidence: {final_conf:.1%}</div>
-<div class="action-card">
-<div class="action-icon">🤖</div>
-<div style="text-align: left;">
-<div style="font-size: 0.75rem; color: var(--accent); font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.25em;">Neural Trace Insight</div>
-<div class="insight-text" style="font-size: 1rem; margin-top: 5px;">
-{insight}
-</div>
-</div>
-</div>
-</div>
-""", unsafe_allow_html=True)
-                
-                with res_col2:
-                    st.plotly_chart(create_confidence_gauge(final_conf, final_intent), use_container_width=True)
-                
-                # Modality Comparison (The "Cool" technical view)
-                st.markdown("### 📊 MULTIMODAL OVERLAY")
-                st.plotly_chart(create_modality_comparison_chart(modality_probs, all_scores), use_container_width=True)
-                
-                # Interactive Actions
-                st.markdown("### ⚡ QUICK ACTIONS")
-                act_col1, act_col2, act_col3 = st.columns(3)
-                with act_col1:
-                    if st.button("📝 Draft Reply", use_container_width=True):
-                        st.toast("Drafting response based on intent...")
-                with act_col2:
-                    if st.button("📈 Log Feedback", use_container_width=True):
-                        st.toast("Feedback logged to training set")
-                with act_col3:
-                    if st.button("🚨 Immediate Transfer", use_container_width=True):
-                        st.toast("Transferring to human supervisor...")
-
-                # Detailed Analysis breakdown
-                st.markdown('<div style="margin-top: 2rem;">', unsafe_allow_html=True)
-                st.markdown("### 🧬 VECTOR ANALYSIS")
-                
-                cols = st.columns(len(INTENT_CLASSES))
-                for idx, intent in enumerate(INTENT_CLASSES):
-                    with cols[idx]:
-                        score = all_scores.get(intent, 0.0)
-                        # Color based on intent for intensity
-                        st.metric(intent.upper(), f"{score:.1%}")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-                # Debug Info (Only in debug mode)
-                if use_debug:
+                    progress_bar.progress(100)
+                    status_text.text("✅ Analysis complete!")
+                    time.sleep(0.5)
+                    progress_bar.empty()
+                    status_text.empty()
+                    
+                    # Display stunning results
                     st.markdown("---")
-                    st.warning("🐞 **CORE DEBUG TRACE**")
-                    with st.expander("Neural Weights & Probabilities", expanded=True):
-                        st.json({
-                            "Text": text_probs if text_probs else "OFF",
-                            "Audio": audio_emotion if audio_emotion else "OFF",
-                            "Vision": vision_emotion if vision_emotion else "OFF",
-                            "System_Fusion": all_scores
-                        })
-                
-            except Exception as e:
-                st.error(f"❌ FUSION COLLAPSE: {e}")
-                import traceback
-                st.code(traceback.format_exc())
+                    badge_class = f"badge-{final_intent.lower()}"
+                    insight = generate_ai_insight(final_intent, final_conf, modality_probs, text_input, audio_emotion, vision_emotion)
+                    
+                    res_col1, res_col2 = st.columns([1.2, 0.8])
+                    with res_col1:
+                        st.markdown(f"""
+    <div class="result-box">
+    <div class="intent-label">System Analysis Result</div>
+    <h2 class="intent-value">{final_intent}</h2>
+    <div class="intent-badge {badge_class}">Confidence: {final_conf:.1%}</div>
+    <div class="action-card" style="margin-top: 20px; text-align: left; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; border-left: 4px solid var(--accent);">
+    <div style="font-size: 0.7rem; color: var(--accent); font-family: 'JetBrains Mono'; text-transform: uppercase;">Neural Trace Insight</div>
+    <div style="font-size: 0.95rem; margin-top: 5px; color: #f8fafc; font-style: italic;">"{insight}"</div>
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
+                    
+                    with res_col2:
+                        st.plotly_chart(create_confidence_gauge(final_conf, final_intent), use_container_width=True)
+                    
+                    # Modality Comparison
+                    st.plotly_chart(create_modality_comparison_chart(modality_probs, all_scores), use_container_width=True)
+                    
+                    # Quick Actions
+                    st.markdown("### ⚡ QUICK ACTIONS")
+                    act_col1, act_col2 = st.columns(2)
+                    with act_col1:
+                        if st.button("📝 Draft Reply", use_container_width=True, key="btn_reply"): st.toast("Drafting response...")
+                    with act_col2:
+                        if st.button("🚨 Transfer", use_container_width=True, key="btn_trans"): st.toast("Transferring...")
+
+                except Exception as e:
+                    st.error(f"❌ FUSION COLLAPSE: {e}")
+        
+        else:
+            # Placeholder when no analysis is active
+            st.markdown("""
+            <div style="text-align: center; padding: 4rem 2rem; border: 2px dashed rgba(255,255,255,0.05); border-radius: 24px; color: var(--text-dim);">
+                <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;">🧠</div>
+                <h3>NEURAL CORE STANDBY</h3>
+                <p>Activate sensors and execute prediction to begin analysis cycle.</p>
+            </div>
+            """, unsafe_allow_html=True)
+
         
         st.markdown('</div>', unsafe_allow_html=True)
         

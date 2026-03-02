@@ -127,7 +127,8 @@ def fuse_multimodal(text_probs=None, audio_emotion=None, vision_emotion=None, we
     
     if total_weight == 0:
         # Fallback if nothing is provided
-        return "Neutral", 0.0, {k: 0.2 for k in INTENT_CLASSES}, "Normal routing"
+        return "Neutral", 0.0, {k: 0.2 for k in INTENT_CLASSES}, "Normal routing", {}
+
         
     # 6. Weighted Fusion
     final_vector = np.zeros(len(INTENT_CLASSES))

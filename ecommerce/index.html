@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AETHER Store | Official Site</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="script.js" defer></script>
+</head>
+
+<body>
+    <!-- Premium Header -->
+    <nav class="main-nav">
+        <div class="top-bar">
+            <span>Special Offer: Get 20% off on all Vision series with code: NEURAL20</span>
+            <div class="top-links">
+                <a href="#" id="signin-nav-btn">Sign In</a> | <a href="#">Orders</a> | <a href="#">Help</a>
+            </div>
+
+        </div>
+        <div class="navbar">
+            <div class="logo-area" onclick="location.reload()">
+                <span class="logo">AETHER</span>
+            </div>
+            <div class="nav-links">
+                <a href="#computing">Laptops</a>
+                <a href="#audio">Audio</a>
+                <a href="#wearables">Wearables</a>
+                <a href="#studio">Studio</a>
+            </div>
+            <div class="nav-tools">
+                <div class="search-box">
+                    <input type="text" placeholder="Search products...">
+                    <button>🔍</button>
+                </div>
+                <div class="cart-icon" id="cart-btn">
+                    🛒 <span id="cart-count">0</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Content -->
+    <header class="main-hero">
+        <div class="hero-image" style="background-image: url('assets/hero.png');"></div>
+        <div class="hero-overlay">
+            <div class="content">
+                <span class="badge">VISION SERIES</span>
+                <h1>Redefining the <br><span>Human Interface</span></h1>
+                <p>Advanced neural-integrated hardware for the professional era.</p>
+                <div class="cta-group">
+                    <button class="btn-primary" onclick="scrollToId('computing')">Shop Now</button>
+                    <button class="btn-secondary">Learn More</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Product Sections -->
+    <main class="store-container">
+
+        <!-- Computing Section -->
+        <section id="computing" class="product-section">
+            <h2 class="section-title">High-Performance Computing</h2>
+            <div class="product-grid">
+                <div class="product-card">
+                    <div class="img-box">
+                        <img src="assets/laptop.png" alt="AetherBook Ultra 14">
+                    </div>
+
+                    <div class="info">
+                        <h3>AetherBook Ultra 14</h3>
+                        <p class="desc">Neural Chip M1, 32GB RAM, 1TB SSD</p>
+                        <div class="price-line">
+                            <span class="price">₹1,56,900</span>
+                            <button class="add-btn" onclick="addToCart('AetherBook Ultra 14', 156900)">Add to
+                                Bag</button>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="product-card">
+                    <div class="img-box">
+                        <img src="assets/laptop.png" alt="AetherBook Air">
+                    </div>
+
+
+                    <div class="info">
+                        <h3>AetherBook Air</h3>
+                        <p class="desc">Slim design, 18-hour battery life</p>
+                        <div class="price-line">
+                            <span class="price">₹1,07,900</span>
+                            <button class="add-btn" onclick="addToCart('AetherBook Air', 107900)">Add to Bag</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Audio Section -->
+        <section id="audio" class="product-section alternate">
+            <h2 class="section-title">Immersive Sound</h2>
+            <div class="product-grid">
+                <div class="product-card">
+                    <div class="img-box">
+                        <img src="assets/audio.png" alt="Studio Pro ANC">
+                    </div>
+
+                    <div class="info">
+                        <h3>Studio Pro ANC</h3>
+                        <p class="desc">Spatial audio, 40-hour battery</p>
+                        <div class="price-line">
+                            <span class="price">₹45,500</span>
+                            <button class="add-btn" onclick="addToCart('Studio Pro ANC', 45500)">Add to Bag</button>
+                        </div>
+
+                    </div>
+                </div>
+                <div class="product-card">
+                    <div class="img-box">
+                        <img src="assets/earbuds.png" alt="Aether Buds">
+                    </div>
+
+                    <div class="info">
+                        <h3>Aether Buds</h3>
+                        <p class="desc">Neural noise cancellation</p>
+                        <div class="price-line">
+                            <span class="price">₹20,500</span>
+                            <button class="add-btn" onclick="addToCart('Aether Buds', 20500)">Add to Bag</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- REAL E-COMMERCE FOOTER -->
+    <footer class="site-footer">
+        <div class="footer-grid">
+            <div class="footer-col">
+                <h4>Support</h4>
+                <a href="#">Status</a>
+                <a href="#">Returns</a>
+                <a href="#">Shipping</a>
+            </div>
+            <div class="footer-col">
+                <h4>About</h4>
+                <a href="#">Brand</a>
+                <a href="#">News</a>
+                <a href="#">Careers</a>
+            </div>
+            <div class="footer-col newsletter">
+                <h4>Join the Future</h4>
+                <input type="email" placeholder="Email Address">
+                <button>Subscribe</button>
+            </div>
+        </div>
+        <div class="legal">
+            © 2026 Aether Technologies Inc. All rights reserved.
+        </div>
+    </footer>
+
+    <!-- REFINED NEURAL CHAT INTEGRATION -->
+    <div id="neural-support-btn" class="support-fab">
+        <span class="icon">💬</span> Support
+    </div>
+
+    <!-- Chat Interface -->
+    <div id="support-modal" class="chat-sidebar hidden">
+        <div class="chat-header">
+            <div class="header-info">
+                <h3>Aether Assistant</h3>
+                <span class="status">● Online</span>
+            </div>
+            <button id="close-support">✕</button>
+        </div>
+
+        <div class="chat-body" id="chat-history">
+            <div class="msg ai">How can I assist your shopping experience today? I can help with orders, product info,
+                or technical support.</div>
+        </div>
+
+        <!-- CAMERA/SENSORS AREA -->
+        <div id="sensor-preview" class="hidden">
+            <div class="video-wrapper">
+                <video id="support-cam" autoplay playsinline></video>
+                <div class="scan-animation"></div>
+            </div>
+            <div id="scan-label">SCANNING INTENT...</div>
+        </div>
+
+        <div class="chat-footer">
+            <div class="sensor-row">
+                <button id="cam-btn" title="Live Video Analysis">📹 Live</button>
+                <button id="img-btn" title="Upload Image Trace">� Image</button>
+
+                <button id="mic-btn" title="Voice Analysis">🎤 Voice</button>
+            </div>
+            <input type="file" id="image-upload" accept="image/*" class="hidden">
+
+            <div class="input-row">
+                <input type="text" id="support-text" placeholder="Type a message...">
+                <button id="send-btn">Send</button>
+            </div>
+
+            <!-- REAL-TIME ANALYTICS (SUBTLE) -->
+            <div id="neural-analytics" class="hidden">
+                <div class="intent-row">
+                    Detected Intent: <strong id="detected-intent">---</strong>
+                </div>
+                <div class="conf-bar-bg">
+                    <div id="intent-conf-bar" class="conf-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals for E-commerce Functionality -->
+    <div id="signin-modal" class="auth-modal hidden">
+        <div class="modal-content">
+            <h3>Sign Into Aether</h3>
+            <p>Connect to access Neural Personalization & INR Currency.</p>
+            <input type="email" id="user-email" placeholder="Email Address">
+            <input type="password" id="user-pass" placeholder="Password">
+            <div class="modal-actions">
+                <button class="btn-primary" id="do-signin">Sign In</button>
+                <button class="btn-ghost" id="close-signin">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bag Drawer / Modal -->
+    <div id="cart-modal" class="cart-sidebar hidden">
+        <div class="chat-header">
+            <div class="header-info">
+                <h3>Your Bag</h3>
+                <span id="bag-total-count">0 items</span>
+            </div>
+            <button id="close-cart">✕</button>
+        </div>
+        <div class="chat-body" id="cart-items">
+            <!-- Items injected by JS -->
+            <div class="empty-cart-msg">Your bag is empty. Explore the Aether ecosystem.</div>
+        </div>
+        <div class="chat-footer">
+            <div class="cart-summary">
+                <span>Estimated Total:</span>
+                <span id="cart-total-price">₹0</span>
+            </div>
+            <button class="btn-primary buy-now-btn" style="width: 100%; margin-top: 1rem;">Complete Checkout</button>
+        </div>
+    </div>
+
+
+</html>

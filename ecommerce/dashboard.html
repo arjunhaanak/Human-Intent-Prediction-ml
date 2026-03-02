@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AETHER | Intent Analytics Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --priority: #ef4444;
+            --neutral: #10b981;
+            --bg: #f8fafc;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .stat-card {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-card h3 {
+            margin: 0;
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .stat-card .count {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-top: 0.5rem;
+        }
+
+        .priority-count {
+            color: var(--priority);
+        }
+
+        .cases-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .cases-column {
+            background: #fff;
+            border-radius: 20px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+        }
+
+        .column-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 1rem;
+        }
+
+        .case-card {
+            padding: 1rem;
+            border: 1px solid #eee;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            transition: 0.2s;
+        }
+
+        .case-card:hover {
+            border-color: var(--primary);
+            transform: translateX(5px);
+        }
+
+        .case-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .case-text {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .case-intent {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            margin-top: 8px;
+        }
+
+        .intent-priority {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .intent-neutral {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .senior-badge {
+            background: var(--priority);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 0.7rem;
+            font-weight: 800;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Aether Intent Dashboard</h1>
+        <div class="senior-badge">SENIOR WORKER ACCESS ONLY</div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>Urgent (Priority)</h3>
+            <div id="priority-total" class="count priority-count">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Standard (General)</h3>
+            <div id="general-total" class="count">0</div>
+        </div>
+        <div class="stat-card">
+            <h3>Casual (Neutral)</h3>
+            <div id="neutral-total" class="count">0</div>
+        </div>
+    </div>
+
+    <div class="cases-section">
+        <div class="cases-column">
+            <div class="column-header">
+                <h2>🚩 Priority Queue</h2>
+                <p>Escalation, Distress, Complaints</p>
+            </div>
+            <div id="priority-list">Loading priority cases...</div>
+        </div>
+        <div class="cases-column">
+            <div class="column-header">
+                <h2>🟢 Neutral Sync</h2>
+                <p>Casual inquiries & basic checks</p>
+            </div>
+            <div id="neutral-list">Loading neutral cases...</div>
+        </div>
+    </div>
+
+    <script>
+        const API = "http://localhost:8000/dashboard";
+
+        async function loadDashboard() {
+            // Load Stats
+            const statsResp = await fetch(`${API}/stats`);
+            const stats = await statsResp.json();
+            document.getElementById('priority-total').innerText = stats.priority;
+            document.getElementById('general-total').innerText = stats.general;
+            document.getElementById('neutral-total').innerText = stats.neutral;
+
+            // Load Priority Cases
+            const priResp = await fetch(`${API}/cases/priority`);
+            const priCases = await priResp.json();
+            renderCases('priority-list', priCases, 'intent-priority');
+
+            // Load Neutral Cases
+            const neuResp = await fetch(`${API}/cases/neutral`);
+            const neuCases = await neuResp.json();
+            renderCases('neutral-list', neuCases, 'intent-neutral');
+        }
+
+        function renderCases(targetId, cases, intentClass) {
+            const container = document.getElementById(targetId);
+            if (cases.length === 0) {
+                container.innerHTML = '<p style="color:#999">No cases in this queue.</p>';
+                return;
+            }
+            container.innerHTML = '';
+            cases.reverse().forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'case-card';
+                div.innerHTML = `
+                    <div class="case-meta">
+                        <span>${new Date(c.timestamp).toLocaleString()}</span>
+                        <span>Confidence: ${(c.confidence * 100).toFixed(1)}%</span>
+                    </div>
+                    <div class="case-text">"${c.text_input}"</div>
+                    <div class="case-intent ${intentClass}">${c.intent}</div>
+                    <div style="font-size:0.75rem; color:#666; margin-top:5px;">Suggested: ${c.action}</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        loadDashboard();
+        setInterval(loadDashboard, 10000); // Auto refresh every 10s
+    </script>
+</body>
+
+</html>
