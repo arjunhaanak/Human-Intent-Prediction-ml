@@ -84,16 +84,16 @@
         }
 
         .case-card {
-            padding: 1rem;
+            padding: 1.5rem;
             border: 1px solid #eee;
             border-radius: 12px;
             margin-bottom: 1rem;
             transition: 0.2s;
+            position: relative;
         }
 
         .case-card:hover {
             border-color: var(--primary);
-            transform: translateX(5px);
         }
 
         .case-meta {
@@ -101,21 +101,22 @@
             justify-content: space-between;
             font-size: 0.75rem;
             color: #999;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .case-text {
             font-weight: 700;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
+            color: #1e293b;
         }
 
         .case-intent {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 4px;
+            padding: 4px 12px;
+            border-radius: 6px;
             font-size: 0.7rem;
             font-weight: 800;
-            margin-top: 8px;
+            margin-top: 10px;
         }
 
         .intent-priority {
@@ -128,21 +129,106 @@
             color: #065f46;
         }
 
-        .senior-badge {
-            background: var(--priority);
+        .reply-area {
+            margin-top: 15px;
+            border-top: 1px solid #f1f5f9;
+            padding-top: 15px;
+        }
+
+        .reply-area textarea {
+            width: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: inherit;
+            resize: none;
+            font-size: 0.85rem;
+        }
+
+        .reply-btn {
+            background: var(--primary);
             color: white;
-            padding: 4px 10px;
-            border-radius: 100px;
-            font-size: 0.7rem;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .replies-sent {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #64748b;
+            background: #f8fafc;
+            padding: 8px;
+            border-radius: 6px;
+        }
+
+        /* Login Overlay */
+        #login-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-box {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            width: 400px;
+            text-align: center;
+        }
+
+        .login-box h2 {
+            margin-bottom: 2rem;
+            color: #1e293b;
+        }
+
+        .login-box input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
             font-weight: 800;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none !important;
         }
     </style>
 </head>
 
 <body>
+    <div id="login-overlay">
+        <div class="login-box">
+            <h2>Senior Auth Required</h2>
+            <input type="email" id="senior-email" placeholder="Senior Email" value="senior@aether.ai">
+            <input type="password" id="senior-pass" placeholder="Aether Access Key" value="aether2026">
+            <button onclick="doSeniorLogin()">Verify Node</button>
+        </div>
+    </div>
+
     <div class="header">
-        <h1>Aether Intent Dashboard</h1>
-        <div class="senior-badge">SENIOR WORKER ACCESS ONLY</div>
+        <h1>Aether Intent Core Dashboard</h1>
+        <div id="senior-info" class="hidden">Senior Node: <strong id="node-id">0x77</strong></div>
     </div>
 
     <div class="stats-grid">
@@ -166,64 +252,206 @@
                 <h2>🚩 Priority Queue</h2>
                 <p>Escalation, Distress, Complaints</p>
             </div>
-            <div id="priority-list">Loading priority cases...</div>
+            <div id="priority-list">Loading queue...</div>
         </div>
         <div class="cases-column">
             <div class="column-header">
                 <h2>🟢 Neutral Sync</h2>
                 <p>Casual inquiries & basic checks</p>
             </div>
-            <div id="neutral-list">Loading neutral cases...</div>
+            <div id="neutral-list">Loading sync...</div>
         </div>
     </div>
 
     <script>
-        const API = "http://localhost:8000/dashboard";
+        const API = "http://localhost:8000";
+        let seniorToken = null;
 
-        async function loadDashboard() {
-            // Load Stats
-            const statsResp = await fetch(`${API}/stats`);
-            const stats = await statsResp.json();
-            document.getElementById('priority-total').innerText = stats.priority;
-            document.getElementById('general-total').innerText = stats.general;
-            document.getElementById('neutral-total').innerText = stats.neutral;
+        async function doSeniorLogin() {
+            const email = document.getElementById('senior-email').value;
+            const password = document.getElementById('senior-pass').value;
 
-            // Load Priority Cases
-            const priResp = await fetch(`${API}/cases/priority`);
-            const priCases = await priResp.json();
-            renderCases('priority-list', priCases, 'intent-priority');
-
-            // Load Neutral Cases
-            const neuResp = await fetch(`${API}/cases/neutral`);
-            const neuCases = await neuResp.json();
-            renderCases('neutral-list', neuCases, 'intent-neutral');
+            try {
+                const resp = await fetch(`${API}/senior/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await resp.json();
+                seniorToken = data.token;
+                document.getElementById('login-overlay').classList.add('hidden');
+                document.getElementById('senior-info').classList.remove('hidden');
+                loadDashboard();
+            } catch (e) {
+                alert("Auth Failure: Check access keys.");
+            }
         }
 
-        function renderCases(targetId, cases, intentClass) {
+        async function loadDashboard() {
+            if (!seniorToken) return;
+
+            // Load Stats
+            const statsResp = await fetch(`${API}/dashboard/stats`);
+            const stats = await statsResp.json();
+            document.getElementById('priority-total').innerText = stats.priority || 0;
+            document.getElementById('general-total').innerText = stats.general || 0;
+            document.getElementById('neutral-total').innerText = stats.neutral || 0;
+
+            // Load Priority Cases
+            const priResp = await fetch(`${API}/dashboard/cases/priority`);
+            const priCases = await priResp.json();
+            renderCases('priority-list', priCases, 'intent-priority', 'priority');
+
+            // Load Neutral Cases
+            const neuResp = await fetch(`${API}/dashboard/cases/neutral`);
+            const neuCases = await neuResp.json();
+            renderCases('neutral-list', neuCases, 'intent-neutral', 'neutral');
+        }
+
+        function renderCases(targetId, cases, intentClass, category) {
             const container = document.getElementById(targetId);
             if (cases.length === 0) {
-                container.innerHTML = '<p style="color:#999">No cases in this queue.</p>';
+                container.innerHTML = '<p style="color:#999">Queue clear.</p>';
                 return;
             }
             container.innerHTML = '';
+            // Show escalated ones first
+            cases.sort((a, b) => (b.escalated_by_user ? 1 : 0) - (a.escalated_by_user ? 1 : 0));
             cases.reverse().forEach(c => {
                 const div = document.createElement('div');
                 div.className = 'case-card';
+
+                // Build conversation thread HTML
+                let threadHtml = '';
+                if (c.conversation_log && c.conversation_log.length > 0) {
+                    threadHtml = '<div class="conv-thread">';
+                    c.conversation_log.forEach(msg => {
+                        const isUser = msg.role === 'user';
+                        const isAI = msg.role === 'ai';
+                        const bg = isUser ? '#e0f2fe' : isAI ? '#f1f5f9' : '#faf5ff';
+                        const label = isUser ? '🧑 Customer' : isAI ? '🤖 AI' : '👤 Senior';
+                        threadHtml += `
+                            <div style="margin-bottom:6px; padding:7px 10px; border-radius:8px; background:${bg}; font-size:0.8rem;">
+                                <span style="font-weight:800; font-size:0.7rem; display:block; margin-bottom:2px;">${label}</span>
+                                ${msg.text}
+                            </div>`;
+                    });
+                    threadHtml += '</div>';
+                }
+
+                // Existing replies from senior
+                let repliesHtml = '';
+                if (c.replies && c.replies.length > 0) {
+                    repliesHtml = c.replies.map(r =>
+                        `<div class="replies-sent"><strong>✅ Replied:</strong> ${r.text}</div>`
+                    ).join('');
+                }
+
+                const escalatedBadge = c.escalated_by_user
+                    ? `<span style="background:#7c3aed;color:white;padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:800;">⚡ USER ESCALATED</span>`
+                    : '';
+
                 div.innerHTML = `
                     <div class="case-meta">
                         <span>${new Date(c.timestamp).toLocaleString()}</span>
                         <span>Confidence: ${(c.confidence * 100).toFixed(1)}%</span>
                     </div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+                        <div class="case-intent ${intentClass}">${c.intent}</div>
+                        ${escalatedBadge}
+                    </div>
                     <div class="case-text">"${c.text_input}"</div>
-                    <div class="case-intent ${intentClass}">${c.intent}</div>
-                    <div style="font-size:0.75rem; color:#666; margin-top:5px;">Suggested: ${c.action}</div>
+                    <div style="font-size:0.75rem; color:#666; margin-top:5px;">AI Action: ${c.action}</div>
+
+                    ${c.conversation_log && c.conversation_log.length > 0 ? `
+                        <details style="margin-top:12px;">
+                            <summary style="font-size:0.8rem;font-weight:700;cursor:pointer;color:#2563eb;">
+                                📋 View Full Conversation (${c.conversation_log.length} messages)
+                            </summary>
+                            ${threadHtml}
+                        </details>` : ''}
+
+                    ${repliesHtml}
+
+                    <div class="reply-area">
+                        <div style="display:flex; gap:6px; margin-bottom:8px; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:700; color:#64748b;">Senior Reply:</span>
+                            <button onclick="aiDraftReply('${c.id}', '${c.intent}', '${c.confidence}', \`${(c.text_input || '').replace(/`/g, "'").replace(/"/g, "'")}\`)" style="
+                                padding:4px 12px; border:1px solid #7c3aed; border-radius:6px;
+                                background:#faf5ff; color:#7c3aed; font-size:0.75rem;
+                                font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px;
+                            ">✨ AI Draft</button>
+                        </div>
+                        <textarea placeholder="Type your reply or click ✨ AI Draft to auto-generate..." id="reply-${c.id}" rows="4" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:10px;font-family:inherit;resize:vertical;font-size:0.85rem;"></textarea>
+                        <button class="reply-btn" onclick="sendReply('${c.id}', '${category}')">📤 Send Reply to Customer</button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        loadDashboard();
-        setInterval(loadDashboard, 10000); // Auto refresh every 10s
+        async function sendReply(caseId, category) {
+            const textarea = document.getElementById(`reply-${caseId}`);
+            const reply = textarea ? textarea.value.trim() : '';
+            if (!reply) return alert("Please type a reply first.");
+
+            const resp = await fetch(`${API}/dashboard/reply`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ case_id: caseId, reply, category })
+            });
+
+            if (resp.ok) {
+                textarea.value = '';
+                textarea.placeholder = '✅ Reply sent! Customer will see it in ~3 seconds.';
+                loadDashboard();
+            } else {
+                alert("Transmission failed. Try again.");
+            }
+        }
+
+        async function aiDraftReply(caseId, intent, confidence, lastMsg) {
+            const textarea = document.getElementById(`reply-${caseId}`);
+            if (!textarea) return;
+
+            textarea.value = '';
+            textarea.placeholder = '✨ AI is drafting a reply...';
+
+            try {
+                const resp = await fetch(`${API}/suggest-reply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        case_id: caseId,
+                        intent: intent,
+                        confidence: parseFloat(confidence),
+                        last_customer_msg: lastMsg
+                    })
+                });
+
+                if (!resp.ok) throw new Error('API error');
+                const data = await resp.json();
+
+                // Animate typing effect
+                textarea.value = '';
+                textarea.placeholder = 'Edit this AI draft before sending...';
+                let i = 0;
+                const text = data.draft;
+                const typing = setInterval(() => {
+                    textarea.value += text[i];
+                    i++;
+                    if (i >= text.length) {
+                        clearInterval(typing);
+                        textarea.style.borderColor = '#7c3aed';
+                    }
+                }, 12);
+
+            } catch (e) {
+                textarea.placeholder = '⚠️ Draft failed. Type your reply manually.';
+            }
+        }
+
+        setInterval(loadDashboard, 10000);
     </script>
 </body>
 
